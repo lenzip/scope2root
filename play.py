@@ -5,18 +5,22 @@ import sys, time
 import numpy
 import simplejson 
 import timeit
+import optparse
 
 from waveform import Waveform
 
 class Analyzer(object):
-  def __init__(self,work,outfilename,drawEvery=10):
+  def __init__(self,work,outfilename, first, last, batch, drawEvery=10):
     self._work = work
     self._out = TFile(outfilename, "RECREATE")
     self._summarytree = TTree("summary", "summary")
     self._channels = {}
+    self._first = first
+    self._last = last
+    self.drawEvery = drawEvery
+    self._batch = batch
     
     self.chains = []
-    self.drawEvery = drawEvery
     for channel in work.keys():
       print channel
       chain = TChain("tree")
@@ -56,18 +60,26 @@ class Analyzer(object):
           
 
 
-    c=TCanvas();
-    c.Divide(maxhistos+1,len(work.keys()));
+    if not self._batch:
+      c=TCanvas();
+      c.Divide(maxhistos+1,len(work.keys()));
     read=0
     for event in self.mainchain:
+    #for event in self.mainchain:
       try:
+        if read < self._first:
+          read += 1 
+          #print "moving forward"
+          continue
+        if self._last != -1 and read >= self._last:
+          break
         if read%100== 0:
           print "-->read event", read
         waveforms = {}
         for channel in self._work.keys():
           theampl = eval("event."+self._work[channel]['branch_prefix']+"_ampl")
           thetime = eval("event."+self._work[channel]['branch_prefix']+"_time")
-          wf = Waveform(thetime, theampl, channel)
+          wf = Waveform(thetime, theampl, channel, 1)
           wf.setBaselineLimits(self._work[channel]["baseline"]["limit_low"], self._work[channel]["baseline"]["limit_high"])
           wf.setMaxCalculatorLimits(self._work[channel]["maximum"]["limit_low"], self._work[channel]["maximum"]["limit_high"])
           wf.setAreaCalculatorLimits(self._work[channel]["area"]["limit_low"], self._work[channel]["area"]["limit_high"])
@@ -88,15 +100,16 @@ class Analyzer(object):
 
           for plot in self._work[channel]["histograms"]:
             plots[channel][plot["name"]].Fill(waveforms[channel].content[plot['what']]["value"])
-        if read%self.drawEvery == 0:    
-          for i,channel in enumerate(self._work.keys()):  
-            c.cd(i+i*maxhistos+1)
-            o=waveforms[channel].draw(gPad, self._work[channel]["graph"]["ymin"], self._work[channel]["graph"]["ymax"], "h"+str(read))
-            plots_refs.append(o)
-            for ip, plot in enumerate(self._work[channel]["histograms"]):
-              c.cd(i+i*maxhistos+ip+2)
-              plots[channel][plot["name"]].Draw()
-          c.Update() 
+        if not self._batch:
+          if read%self.drawEvery == 0:    
+            for i,channel in enumerate(self._work.keys()):  
+              c.cd(i+i*maxhistos+1)
+              o=waveforms[channel].draw(gPad, self._work[channel]["graph"]["ymin"], self._work[channel]["graph"]["ymax"], "h"+str(read))
+              plots_refs.append(o)
+              for ip, plot in enumerate(self._work[channel]["histograms"]):
+                c.cd(i+i*maxhistos+ip+2)
+                plots[channel][plot["name"]].Draw()
+            c.Update() 
       
         read+=1
         self._summarytree.Fill()
@@ -107,20 +120,15 @@ class Analyzer(object):
         a=raw_input("hit a key to continue...")  
 
 
-
-    a=raw_input("hit a key to continue...")
+       
     self._out.cd()
     self._summarytree.Write()
-    #profile.Draw()
-    #return profile
+    if not self._batch:
+      a=raw_input("hit a key to continue...")
 
   
-
-
-
-if len(sys.argv) < 3 or sys.argv[1] == "--help" or sys.argv[1] == "-h":
-  print """
-  help: python play.py <jsonfile> <outfilename.root>
+usage="""
+  help: python [options] play.py <jsonfile> <outfilename.root>
 
   the json file contains the work to do in a form like
   {
@@ -135,18 +143,27 @@ if len(sys.argv) < 3 or sys.argv[1] == "--help" or sys.argv[1] == "-h":
   "histograms":[{"name": "C2_ampl", "nbins": 100, "xmin": 0.0, "xmax":0.05, "what": "amplitude"}],
   "scaleBy": 1.0}
   }
-  
-  """
+"""
+
+
+parser = optparse.OptionParser(usage)
+parser.add_option('-f', dest='first', help="first event", default=0, action='store', type='int')
+parser.add_option('-l', dest='last', help="last event", default=-1, action='store', type='int')
+parser.add_option('-b', dest='batch', help="run in batch mode", default=False, action='store_true')
+
+(opt, args) = parser.parse_args()
+if len(args)<2 :
+  parser.print_help()
   sys.exit(1)
 
 
-data=open(sys.argv[1])
+data=open(args[0])
 work = simplejson.loads(data.read())
 print work
 a=simplejson.dumps(work)
-ana=Analyzer(work, sys.argv[2])
+ana=Analyzer(work, args[1], opt.first, opt.last, opt.batch)
 ana.play()
 
 
-a=raw_input("hit a key to exit...")
+#a=raw_input("hit a key to exit...")
 
