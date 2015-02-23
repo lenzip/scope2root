@@ -6,7 +6,7 @@ import sys
 
 import lecroy
 
-def treeFromFile(filename, branchroot, treename):
+def treeFromFile(filename, branchroot, treename, timemin=-9999999999, timemax=+999999999):
   basename = filename.rstrip('.txt')
   outfile = TFile(basename+'.root', "RECREATE")
   outfile.cd()
@@ -29,13 +29,9 @@ def treeFromFile(filename, branchroot, treename):
     if eventnumber%100 == 0:
       print "-->read event", eventnumber
     for thetime, theampl in n.nditer([thewaveform[0], thewaveform[1]]):  
-    #for i,thetime in enumerate(converted[0]):
-      time.push_back(thetime)
-      ampl.push_back(theampl)
-      #print thetime, thewaveform[i] 
-      #if thetime > lasttime:
-      #  lasttime = thetime
-      #else:
+      if thetime > timemin and thetime < timemax:
+        time.push_back(thetime)
+        ampl.push_back(theampl)
     tree.Fill()
     time.clear() 
     ampl.clear()
@@ -43,7 +39,15 @@ def treeFromFile(filename, branchroot, treename):
   outfile.Write()
 
 if len(sys.argv) < 3 or sys.argv[1] == "--help" or sys.argv[1] == "-h":
-  print "help: python scope2root.py <txt file name> <string to prepend to each brancg name> "
+  print "help: python scope2root.py <txt file name> <string to prepend to each branch name> "
   sys.exit(1)
-treeFromFile(sys.argv[1], sys.argv[2], "tree")        
+
+timemin = -9999999999
+timemax = +9999999999
+if len(sys.argv)>3:
+  timemin = float(sys.argv[3])
+if len(sys.argv)>4:
+  timemax = float(sys.argv[4])
+  
+treeFromFile(sys.argv[1], sys.argv[2], "tree", timemin, timemax)        
 
