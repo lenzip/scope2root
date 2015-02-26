@@ -8,6 +8,8 @@ import lecroy
 
 def treeFromFile(filename, branchroot, treename, timemin=-9999999999, timemax=+999999999):
   basename = filename.rstrip('.txt')
+  basenamesplit = basename.split('/')
+  basename = basenamesplit[-1] 
   outfile = TFile(basename+'.root', "RECREATE")
   outfile.cd()
   tree = TTree(treename, treename);
