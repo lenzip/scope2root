@@ -1,0 +1,42 @@
+{
+  "C2_fast":{
+  "branch_prefix" : "C2",
+  "files": ["BaF2_v1731_01_20150913_012937_V1731.root"],
+  "baseline": {"limit_low": 700e-9, "limit_high": 850e-9},
+  "maximum": {"limit_low": 850e-9, "limit_high": 940e-9},
+  "area": {"limit_low": 850e-9, "limit_high": 940e-9},
+  "graph": {"ymin": 0, "ymax": 290},
+  "scaleTo": "",
+  "histograms":[{"name": "C2_fast_ampl", "nbins": 100, "xmin": 0.0, "xmax":260, "what": "amplitude"}, {"name": "C2_fast_area", "nbins": 100, "xmin": -3e-6, "xmax":0, "what": "area"}],
+  "scaleBy": 1.0},
+  "C4_fast":{
+  "branch_prefix" : "C4",
+  "files": ["BaF2_v1731_01_20150913_012937_V1731.root"],
+  "baseline": {"limit_low": 700e-9, "limit_high": 850e-9},
+  "maximum": {"limit_low": 850e-9, "limit_high": 960e-9},
+  "area": {"limit_low": 850e-9, "limit_high": 960e-9},
+  "graph": {"ymin": 0, "ymax": 290},
+  "scaleTo": "",
+  "histograms":[{"name": "C4_fast_ampl", "nbins": 100, "xmin": 0.0, "xmax":260, "what": "amplitude"}, {"name": "C4_fast_area", "nbins": 100, "xmin": -3e-6, "xmax":0, "what": "area"}],
+  "scaleBy": 1.0},
+  "C2_slow":{
+  "branch_prefix" : "C2",
+  "files": ["BaF2_v1731_01_20150913_012937_V1731.root"],
+  "baseline": {"limit_low": 700e-9, "limit_high": 850e-9},
+  "maximum": {"limit_low": 850e-9, "limit_high": 1300e-9},
+  "area": {"limit_low": 850e-9, "limit_high": 1300e-9},
+  "graph": {"ymin": 0, "ymax": 290},
+  "scaleTo": "",
+  "histograms":[{"name": "C2_slow_ampl", "nbins": 100, "xmin": 0.0, "xmax":260, "what": "amplitude"}, {"name": "C2_slow_area", "nbins": 100, "xmin": -3e-6, "xmax":0, "what": "area"}],
+  "scaleBy": 1.0},
+  "C4_slow":{
+  "branch_prefix" : "C4",
+  "files": ["BaF2_v1731_01_20150913_012937_V1731.root"],
+  "baseline": {"limit_low": 700e-9, "limit_high": 850e-9},
+  "maximum": {"limit_low": 850e-9, "limit_high": 1300e-9},
+  "area": {"limit_low": 850e-9, "limit_high": 1300e-9},
+  "graph": {"ymin": 0, "ymax": 290},
+  "scaleTo": "",
+  "histograms":[{"name": "C4_slow_ampl", "nbins": 100, "xmin": 0.0, "xmax":260, "what": "amplitude"}, {"name": "C4_slow_area", "nbins": 100, "xmin": -3e-6, "xmax":0, "what": "area"}],
+  "scaleBy": 1.0} 
+}

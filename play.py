@@ -10,7 +10,7 @@ import optparse
 from waveform import Waveform
 
 class Analyzer(object):
-  def __init__(self,work,outfilename, first, last, batch, drawEvery=10):
+  def __init__(self,work,outfilename, first, last, batch, drawEvery=1):
     self._work = work
     self._out = TFile(outfilename, "RECREATE")
     self._summarytree = TTree("summary", "summary")
@@ -79,15 +79,19 @@ class Analyzer(object):
         for channel in self._work.keys():
           theampl = eval("event."+self._work[channel]['branch_prefix']+"_ampl")
           thetime = eval("event."+self._work[channel]['branch_prefix']+"_time")
-          wf = Waveform(thetime, theampl, channel, 1)
-          wf.setBaselineLimits(self._work[channel]["baseline"]["limit_low"], self._work[channel]["baseline"]["limit_high"])
-          wf.setMaxCalculatorLimits(self._work[channel]["maximum"]["limit_low"], self._work[channel]["maximum"]["limit_high"])
-          wf.setAreaCalculatorLimits(self._work[channel]["area"]["limit_low"], self._work[channel]["area"]["limit_high"])
-          wf.setCrossingThresholdSlope(0.5, 'down')
-          waveforms[channel] = wf
+          waveforms[channel] = None
+          if len(thetime) > 0:
+            wf = Waveform(thetime, theampl, channel, 1, self._batch)
+            wf.setBaselineLimits(self._work[channel]["baseline"]["limit_low"], self._work[channel]["baseline"]["limit_high"])
+            wf.setMaxCalculatorLimits(self._work[channel]["maximum"]["limit_low"], self._work[channel]["maximum"]["limit_high"])
+            wf.setAreaCalculatorLimits(self._work[channel]["area"]["limit_low"], self._work[channel]["area"]["limit_high"])
+            #wf.setCrossingThresholdSlope(0.5, 'down')
+            waveforms[channel] = wf
 
         plots_refs = []
         for i,channel in enumerate(self._work.keys()):
+          if waveforms[channel] == None:
+            continue
           if self._work[channel]["scaleBy"]!=None:
             waveforms[channel].scaleBy(self._work[channel]["scaleBy"])
           if self._work[channel]["scaleTo"]!="":
@@ -102,8 +106,10 @@ class Analyzer(object):
             plots[channel][plot["name"]].Fill(waveforms[channel].content[plot['what']]["value"])
         if not self._batch:
           if read%self.drawEvery == 0:    
-            for i,channel in enumerate(self._work.keys()):  
+            for i,channel in enumerate(self._work.keys()): 
               c.cd(i+i*maxhistos+1)
+              if waveforms[channel] == None:
+                continue;
               o=waveforms[channel].draw(gPad, self._work[channel]["graph"]["ymin"], self._work[channel]["graph"]["ymax"], "h"+str(read))
               plots_refs.append(o)
               for ip, plot in enumerate(self._work[channel]["histograms"]):

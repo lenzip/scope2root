@@ -1,6 +1,7 @@
 import numpy as np
 from ROOT import * 
 import operator
+import bisect
 
 class Calculator(object):
   def __init__(self, waveform, step):
@@ -40,9 +41,12 @@ class BaselineCalculator(Calculator):
 
   def _compute(self):
     ampls = []
-    for i in range(0, len(self._waveform._time), self._step):
-      if self._waveform._time[i] > self._timemin and self._waveform._time[i] <self._timemax:
-        ampls.append(self._waveform._ampl[i])
+    #for i in range(0, len(self._waveform._time), self._step):
+    #  if self._waveform._time[i] > self._timemin and self._waveform._time[i] <self._timemax:
+    #    ampls.append(self._waveform._ampl[i])
+    start = bisect.bisect_left(self._waveform._time,self._timemin)
+    stop = bisect.bisect_left(self._waveform._time,self._timemax)
+    ampls = self._waveform._ampl[start:stop]
     self._value = np.median(ampls)
     self._isCached = True
     
@@ -60,12 +64,18 @@ class MaxCalculator(Calculator):
 
   def _compute(self):
     ampls = []
-    times = []
-    for i in range(0, len(self._waveform._time), self._step):
-      if self._waveform._time[i] > self._timemin and self._waveform._time[i] <self._timemax:
-        ampls.append(self._waveform._ampl[i])
-        times.append(time)
-    self._value = min(ampls)
+    #times = []
+    #for i in range(0, len(self._waveform._time), self._step):
+    #  if self._waveform._time[i] > self._timemin and self._waveform._time[i] <self._timemax:
+    #    ampls.append(self._waveform._ampl[i])
+    #    times.append(time)
+    start = bisect.bisect_left(self._waveform._time,self._timemin)
+    stop = bisect.bisect_left(self._waveform._time,self._timemax)
+    ampls = self._waveform._ampl[start:stop]
+    if len(ampls):
+      self._value = min(ampls)
+    else:
+      self._value = 0
     
     self._isCached = True
 
@@ -85,15 +95,18 @@ class AreaCalculator(Calculator):
     self._baselineCalc._compute()
     baseline = self._baselineCalc.value()
     self._value = 0.
-    for i in range(self._step, len(self._waveform._time), self._step):
-      time = self._waveform._time[i]
-      if time > self._timemin and time < self._timemax:
-        timebf = self._waveform._time[i-self._step]
-        ampl   = self._waveform._ampl[i]-baseline
-        amplbf = self._waveform._ampl[i-self._step]-baseline
-        timstep = time-timebf
-        av_ampl = (ampl+amplbf)/2
-        self._value += av_ampl*timstep
+    start = bisect.bisect_left(self._waveform._time,self._timemin)
+    stop = bisect.bisect_left(self._waveform._time,self._timemax)
+    ampls = self._waveform._ampl[start:stop]
+    times = self._waveform._time[start:stop]
+    for i in range(self._step, len(ampls), self._step):
+      time   = times[i]
+      timebf = times[i-self._step]
+      ampl   = ampls[i]-baseline
+      amplbf = ampls[i-self._step]-baseline
+      timstep = time-timebf
+      av_ampl = (ampl+amplbf)/2
+      self._value += av_ampl*timstep
 
 class CrossingThresholdCalculator(Calculator):
   def __init__(self, waveform, maxc, step):
@@ -125,11 +138,14 @@ class CrossingThresholdCalculator(Calculator):
         break
      
       
-
+import time as timer
 class Waveform:
-  def __init__(self, time, ampl, name, step=1):
-    self._initialize(time, ampl, name)
-
+  def __init__(self, time, ampl, name, step=1, batch=False):
+    self._batch = batch
+    #t0 = timer.time()
+    self._initialize(time, ampl, name, batch)
+    #t1 = timer.time()
+    #print "init time", t1-t0
     self.content["baseline"]={'limit_low': -float('Inf'), "limit_high": float('Inf'), "value": float('Nan')}
     self.content["maximum"]={'limit_low': -float('Inf'), "limit_high": float('Inf'), "value": float('Nan')}
     self.content["area"]={'limit_low': -float('Inf'), "limit_high": float('Inf'), "value": float('Nan')}
@@ -137,15 +153,19 @@ class Waveform:
     self.content['amplitude']={'value':float('Nan')}
     self.blc  = BaselineCalculator(self, step)
     self.maxc = MaxCalculator(self, step)
-    self.thcl = CrossingThresholdCalculator(self, self.maxc, step)
+    #self.thcl = CrossingThresholdCalculator(self, self.maxc, step)
     self.areac = AreaCalculator(self, self.blc, step)
-    self.calculators = [self.blc, self.maxc, self.thcl, self.areac]
+    #self.calculators = [self.blc, self.maxc, self.thcl, self.areac]
+    self.calculators = [self.blc, self.maxc, self.areac]
 
-  def _initialize(self, time, ampl, name):
+  def _initialize(self, time, ampl, name, batch):
     self._time = time
     self._ampl = ampl
     self._name = name
-    self._g     = TGraph(len(self._ampl), np.array(self._time), np.array(self._ampl))
+    if (batch):
+      self._g = None 
+    else:  
+      self._g     = TGraph(len(self._ampl), np.array(self._time), np.array(self._ampl))
     if getattr(self, "content", None) == None:
       self.content = {}
     self.content["graph"] = self._g
@@ -160,7 +180,7 @@ class Waveform:
     newamp =  [x*value for x in self._ampl]
     self._ampl = newamp 
     #print np.array(self._ampl)
-    self._initialize(self._time, self._ampl, self._name)
+    self._initialize(self._time, self._ampl, self._name, self._batch)
     for calc in self.calculators:
       calc.reset()
 
@@ -213,11 +233,22 @@ class Waveform:
     return self.content["crossings"]["value"]
 
   def computeAll(self):
+    #t0=timer.time()
     self.computeBaseline()
+    #t1=timer.time()
+    #print "Baseline time", t1-t0
     self.computeMax()
+    #t2=timer.time()
+    #print "Maximum time", t2-t1
     self.computeAmplitude()
-    self.computeCrossing()
+    #t3=timer.time()
+    #print "Amplitude time", t3-t2
+    #self.computeCrossing()
+    #t4=timer.time()
+    #print "Crossing time", t4-t3
     self.computeArea()
+    #t5=timer.time()
+    #print "Area time", t5-t4
     
 
   def draw(self, canvas, ymin, ymax, name):
