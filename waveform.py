@@ -2,6 +2,7 @@ import numpy as np
 from ROOT import * 
 import operator
 import bisect
+import copy
 
 class Calculator(object):
   def __init__(self, waveform, step):
@@ -33,7 +34,7 @@ class BaselineCalculator(Calculator):
     super(BaselineCalculator, self).__init__(waveform, step)
     self._timemin = timemin
     self._timemax = timemax
-  
+ 
   def setLimits(self, timemin=-float('Inf'), timemax=float('Inf')):
     self._timemin = timemin
     self._timemax = timemax
@@ -41,13 +42,14 @@ class BaselineCalculator(Calculator):
 
   def _compute(self):
     ampls = []
-    #for i in range(0, len(self._waveform._time), self._step):
-    #  if self._waveform._time[i] > self._timemin and self._waveform._time[i] <self._timemax:
-    #    ampls.append(self._waveform._ampl[i])
-    start = bisect.bisect_left(self._waveform._time,self._timemin)
-    stop = bisect.bisect_left(self._waveform._time,self._timemax)
-    ampls = self._waveform._ampl[start:stop]
+    for i in range(0, len(self._waveform._time), self._step):
+      if self._waveform._time[i] > self._timemin and self._waveform._time[i] <self._timemax:
+        ampls.append(self._waveform._ampl[i])
+    #start = bisect.bisect_left(self._waveform._time,self._timemin)
+    #stop = bisect.bisect_left(self._waveform._time,self._timemax)
+    #ampls = self._waveform._ampl[start:stop]
     self._value = np.median(ampls)
+    #self._value = 0
     self._isCached = True
     
 #computes the maximum
@@ -64,16 +66,14 @@ class MaxCalculator(Calculator):
 
   def _compute(self):
     ampls = []
-    #times = []
-    #for i in range(0, len(self._waveform._time), self._step):
-    #  if self._waveform._time[i] > self._timemin and self._waveform._time[i] <self._timemax:
-    #    ampls.append(self._waveform._ampl[i])
-    #    times.append(time)
-    start = bisect.bisect_left(self._waveform._time,self._timemin)
-    stop = bisect.bisect_left(self._waveform._time,self._timemax)
-    ampls = self._waveform._ampl[start:stop]
+    for i in range(0, len(self._waveform._time), self._step):
+      if self._waveform._time[i] > self._timemin and self._waveform._time[i] <self._timemax:
+        ampls.append(self._waveform._ampl[i])
+    #start = bisect.bisect_left(self._waveform._time,self._timemin)
+    #stop = bisect.bisect_left(self._waveform._time,self._timemax)
+    #ampls = self._waveform._ampl[start:stop]
     if len(ampls):
-      self._value = min(ampls)
+      self._value = max(ampls) 
     else:
       self._value = 0
     
@@ -95,10 +95,16 @@ class AreaCalculator(Calculator):
     self._baselineCalc._compute()
     baseline = self._baselineCalc.value()
     self._value = 0.
-    start = bisect.bisect_left(self._waveform._time,self._timemin)
-    stop = bisect.bisect_left(self._waveform._time,self._timemax)
-    ampls = self._waveform._ampl[start:stop]
-    times = self._waveform._time[start:stop]
+    ampls = []
+    times = []
+    for i in range(0, len(self._waveform._time), self._step):
+      if self._waveform._time[i] > self._timemin and self._waveform._time[i] <self._timemax:
+        ampls.append(self._waveform._ampl[i])
+        times.append(self._waveform._time[i])
+    #start = bisect.bisect_left(self._waveform._time,self._timemin)
+    #stop = bisect.bisect_left(self._waveform._time,self._timemax)
+    #ampls = self._waveform._ampl[start:stop]
+    #times = self._waveform._time[start:stop]
     for i in range(self._step, len(ampls), self._step):
       time   = times[i]
       timebf = times[i-self._step]
@@ -159,8 +165,8 @@ class Waveform:
     self.calculators = [self.blc, self.maxc, self.areac]
 
   def _initialize(self, time, ampl, name, batch):
-    self._time = time
-    self._ampl = ampl
+    self._time = copy.deepcopy(time)
+    self._ampl = copy.deepcopy(ampl)
     self._name = name
     if (batch):
       self._g = None 
@@ -173,14 +179,18 @@ class Waveform:
   def scaleTo(self, waveform, what, norm=1.):
     scalevalue = waveform.content[what]["value"]/norm
     self.scaleBy(scalevalue)
+  
+  def clear(self):
+    del self._time
+    del self._ampl
  
   def scaleBy(self, value):
     #print "inizio"
-    #print np.array(self._ampl) 
-    newamp =  [x*value for x in self._ampl]
-    self._ampl = newamp 
     #print np.array(self._ampl)
-    self._initialize(self._time, self._ampl, self._name, self._batch)
+    for i in range(self._ampl.size()):
+      self._ampl[i] = self._ampl[i]*value
+    #print np.array(self._ampl)
+    #self._initialize(self._time, self._ampl, self._name, self._batch)
     for calc in self.calculators:
       calc.reset()
 
@@ -246,7 +256,7 @@ class Waveform:
     #self.computeCrossing()
     #t4=timer.time()
     #print "Crossing time", t4-t3
-    self.computeArea()
+#    self.computeArea()
     #t5=timer.time()
     #print "Area time", t5-t4
     

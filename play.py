@@ -10,7 +10,7 @@ import optparse
 from waveform import Waveform
 
 class Analyzer(object):
-  def __init__(self,work,outfilename, first, last, batch, drawEvery=1):
+  def __init__(self,work,outfilename, first, last, batch, drawEvery=5):
     self._work = work
     self._out = TFile(outfilename, "RECREATE")
     self._summarytree = TTree("summary", "summary")
@@ -87,7 +87,9 @@ class Analyzer(object):
             wf.setAreaCalculatorLimits(self._work[channel]["area"]["limit_low"], self._work[channel]["area"]["limit_high"])
             #wf.setCrossingThresholdSlope(0.5, 'down')
             waveforms[channel] = wf
-
+          del theampl
+          del thetime
+          
         plots_refs = []
         for i,channel in enumerate(self._work.keys()):
           if waveforms[channel] == None:
@@ -101,7 +103,7 @@ class Analyzer(object):
           self._channels[channel]['baseline'][0] = waveforms[channel].content['baseline']['value']
           self._channels[channel]['area'][0] = waveforms[channel].content['area']['value'] 
           self._channels[channel]['timecross'][0] = waveforms[channel].content['crossings']['value']
-
+          
           for plot in self._work[channel]["histograms"]:
             plots[channel][plot["name"]].Fill(waveforms[channel].content[plot['what']]["value"])
         if not self._batch:
@@ -115,8 +117,11 @@ class Analyzer(object):
               for ip, plot in enumerate(self._work[channel]["histograms"]):
                 c.cd(i+i*maxhistos+ip+2)
                 plots[channel][plot["name"]].Draw()
-            c.Update() 
-      
+            c.Update()
+        for i,channel in enumerate(self._work.keys()):  
+          if waveforms[channel] != None:
+            waveforms[channel].clear()
+            del waveforms[channel]
         read+=1
         self._summarytree.Fill()
 
@@ -125,7 +130,7 @@ class Analyzer(object):
         self._summarytree.Write()
         a=raw_input("hit a key to continue...")  
 
-
+  
        
     self._out.cd()
     self._summarytree.Write()
@@ -156,6 +161,7 @@ parser = optparse.OptionParser(usage)
 parser.add_option('-f', dest='first', help="first event", default=0, action='store', type='int')
 parser.add_option('-l', dest='last', help="last event", default=-1, action='store', type='int')
 parser.add_option('-b', dest='batch', help="run in batch mode", default=False, action='store_true')
+parser.add_option('-p', dest='polarity', help="signal polarity (pos, neg) default pos", default="pos", action='store')
 
 (opt, args) = parser.parse_args()
 if len(args)<2 :
