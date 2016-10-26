@@ -54,10 +54,11 @@ class BaselineCalculator(Calculator):
     
 #computes the maximum
 class MaxCalculator(Calculator):
-  def __init__(self, waveform, step, timemin=-float('Inf'), timemax=float('Inf')):
+  def __init__(self, waveform, baselineCalc, step, timemin=-float('Inf'), timemax=float('Inf')):
     super(MaxCalculator, self).__init__(waveform, step)
     self._timemin = timemin
     self._timemax = timemax
+    self._baselineCalc = baselineCalc
 
   def setLimits(self, timemin=-float('Inf'), timemax=float('Inf')):
     self._timemin = timemin
@@ -65,15 +66,19 @@ class MaxCalculator(Calculator):
     self._isCached = False
 
   def _compute(self):
+    self._baselineCalc._compute()
+    baseline = self._baselineCalc.value()
     ampls = []
+    amplsAbs = []
     for i in range(0, len(self._waveform._time), self._step):
       if self._waveform._time[i] > self._timemin and self._waveform._time[i] <self._timemax:
         ampls.append(self._waveform._ampl[i])
+        amplsAbs.append(abs(self._waveform._ampl[i]-baseline))
     #start = bisect.bisect_left(self._waveform._time,self._timemin)
     #stop = bisect.bisect_left(self._waveform._time,self._timemax)
     #ampls = self._waveform._ampl[start:stop]
     if len(ampls):
-      self._value = max(ampls) 
+      self._value =  ampls[amplsAbs.index(max(amplsAbs))]#max(ampls) 
     else:
       self._value = 0
     
@@ -158,7 +163,7 @@ class Waveform:
     self.content["crossings"]={'threshold': float('Nan'), "slope": "undefined", "value": float('Nan')}
     self.content['amplitude']={'value':float('Nan')}
     self.blc  = BaselineCalculator(self, step)
-    self.maxc = MaxCalculator(self, step)
+    self.maxc = MaxCalculator(self, self.blc, step)
     #self.thcl = CrossingThresholdCalculator(self, self.maxc, step)
     self.areac = AreaCalculator(self, self.blc, step)
     #self.calculators = [self.blc, self.maxc, self.thcl, self.areac]
